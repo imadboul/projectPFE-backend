@@ -44,5 +44,6 @@ class Notification(models.Model):
     content = models.TextField()
     viewed = models.BooleanField(default= False)
     link = models.TextField()
+    date = models.DateTimeField(auto_now_add=True)
     
     

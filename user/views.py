@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from django.http import JsonResponse, HttpRequest
+from django.http import JsonResponse
 from .serializers import *
 from django.conf import settings
 from django.core.mail import send_mail
@@ -105,22 +105,69 @@ def verifyEmail(request,token):
     
     
 @api_view(["POST"])
-def refresh_access(request : HttpRequest):
+def refresh_access(request):
     
+    serializer = RefreshTokenserializer(data = request.data )
     
-    data = json.loads(request.body)
-    token = data.get("refreshToken")
+    if not serializer.is_valid():
+        return JsonResponse({"error": serializer.error_messages }, status=401)
     
-    refresh_token = decode_jwt(token)
+    payload = serializer.validated_data['payload'] # type: ignore
     
-    if not refresh_token or refresh_token == "expired" or refresh_token == None or refresh_token.get("type") != "refresh":
-        return JsonResponse({"error": "Invalid refresh"}, status=401)
-    
-    user = Client.objects.get(id = refresh_token.get("user_id")) 
+    user = Client.objects.get(id = payload.get("user_id")) 
     
     access_token,_ = create_jwt(user)
     
     return JsonResponse({"access_token": access_token})
+    
+    
+def notify_all_superadmin(title,content,link):
+    
+    superadmins = Client.objects.filter(role = 'superAdmin')
+    for admin in superadmins:
+        notification = Notification.objects.create(
+            user=admin,
+            title=title,
+            content=content,
+            link=link,
+            viewed=False  
+        )
+        
+def notify_all_admin(title,content,link):
+    
+    admins = Client.objects.filter(role__in =['admin', 'superAdmin'])
+    for admin in admins:
+        notification = Notification.objects.create(
+            user=admin,
+            title=title,
+            content=content,
+            link=link,
+            viewed=False  
+        )
+def notify_all_client(title,content,link):
+    
+    clients = Client.objects.filter(role = 'client')
+    for client in clients:
+        notification = Notification.objects.create(
+            user=client,
+            title=title,
+            content=content,
+            link=link,
+            viewed=False  
+        )
+        
+def notify_a_client(id,title,content,link):
+    
+    client = get_object_or_404(Client, id= id)
+    notification = Notification.objects.create(
+            user=client,
+            title=title,
+            content=content,
+            link=link,
+            viewed=False  
+        )
+    
+    
     
         
     
